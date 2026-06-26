@@ -1,0 +1,76 @@
+name: Сборка Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Ручной запуск
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Клонирование репозитория
+      - name: Клонирование репозитория
+        uses: actions/checkout@v4
+
+      # 2. Загрузка переменных окружения из секрета ENV_FILE
+      - name: Создание .env из секрета
+        run: echo "${{ secrets.ENV_FILE }}" > .env
+
+      # 3. Экспорт переменных в окружение
+      - name: Экспорт переменных окружения
+        run: |
+          set -a
+          source .env
+          set +a
+          # Для проверки (вывод только первых 5 символов)
+          echo "GITHUB_TOKEN starts with: ${GITHUB_TOKEN:0:5}..."
+          echo "GEMINI_API_KEY starts with: ${GEMINI_API_KEY:0:5}..."
+          echo "Все переменные загружены."
+
+      # 4. Установка JDK 17
+      - name: Установка JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # 5. Кэширование Gradle (ускоряет сборку)
+      - name: Кэширование Gradle
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # 6. Даём права на выполнение gradlew
+      - name: Установка прав для gradlew
+        run: chmod +x gradlew
+
+      # 7. Сборка Debug APK
+      - name: Сборка Debug APK
+        run: ./gradlew assembleDebug
+
+      # 8. Загрузка Debug APK как артефакта
+      - name: Загрузка Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/*.apk
+
+      # 9. Сборка Release APK
+      - name: Сборка Release APK
+        run: ./gradlew assembleRelease
+
+      # 10. Загрузка Release APK
+      - name: Загрузка Release APK (неподписанный)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-unsigned
+          path: app/build/outputs/apk/release/*.apk
