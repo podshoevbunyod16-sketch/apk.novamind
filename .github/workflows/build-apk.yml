@@ -1,0 +1,73 @@
+name: Build NovaMind Full APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Cache Gradle
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: |
+          gradle-${{ runner.os }}-
+
+    - name: Build APK
+      run: |
+        cd android
+        chmod +x gradlew
+        ./gradlew assembleRelease
+
+    - name: Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: NovaMind-Full-APK
+        path: android/app/build/outputs/apk/release/*.apk
+
+    - name: Create Release
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ github.run_number }}
+        name: NovaMind Full v${{ github.run_number }}
+        body: |
+          ## NovaMind Full — Автономное Android приложение
+
+          Всё работает внутри APK! Python + Flask сервер запускается прямо в приложении.
+
+          ### Установка:
+          1. Скачай `app-release-unsigned.apk`
+          2. Разреши установку из неизвестных источников
+          3. Установи и запусти
+
+          ### Важно:
+          - Для работы с AI нужен интернет и API ключ (Groq)
+          - Получи ключ бесплатно на console.groq.com
+          - Добавь ключ в настройки приложения
+        files: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
