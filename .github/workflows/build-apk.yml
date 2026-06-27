@@ -21,9 +21,6 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
-
     - name: Cache Gradle
       uses: actions/cache@v4
       with:
@@ -34,39 +31,38 @@ jobs:
         restore-keys: |
           gradle-${{ runner.os }}-
 
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
     - name: Build APK
-      run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew assembleRelease
+      run: ./gradlew assembleRelease --no-daemon
+      env:
+        GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: NovaMind-Full-APK
-        path: android/app/build/outputs/apk/release/*.apk
+        path: app/build/outputs/apk/release/*.apk
 
     - name: Create Release
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: v${{ github.run_number }}
         name: NovaMind Full v${{ github.run_number }}
         body: |
-          ## NovaMind Full — Автономное Android приложение
-
-          Всё работает внутри APK! Python + Flask сервер запускается прямо в приложении.
+          ## NovaMind Full — Android APK
 
           ### Установка:
-          1. Скачай `app-release-unsigned.apk`
+          1. Скачай APK файл
           2. Разреши установку из неизвестных источников
           3. Установи и запусти
 
           ### Важно:
-          - Для работы с AI нужен интернет и API ключ (Groq)
+          - Для работы с AI нужен API ключ (Groq)
           - Получи ключ бесплатно на console.groq.com
-          - Добавь ключ в настройки приложения
-        files: android/app/build/outputs/apk/release/app-release-unsigned.apk
+        files: app/build/outputs/apk/release/app-release.apk
         draft: false
         prerelease: false
       env:
