@@ -25,9 +25,15 @@ class AppSettings(private val context: Context) {
         val USER_PROFILE = stringPreferencesKey("user_profile")
         val CHAT_HISTORY = stringPreferencesKey("chat_history")
         val DARK_THEME = booleanPreferencesKey("dark_theme")
+
+        // URL сервера NovaMind по умолчанию
+        const val DEFAULT_SERVER_URL = "https://novamind-7kqm.onrender.com"
     }
 
-    val serverUrl: Flow<String> = context.dataStore.data.map { it[SERVER_URL] ?: "" }
+    // Если пользователь не задал свой URL — используем дефолтный сервер
+    val serverUrl: Flow<String> = context.dataStore.data.map {
+        it[SERVER_URL]?.takeIf { url -> url.isNotBlank() } ?: DEFAULT_SERVER_URL
+    }
 
     suspend fun setServerUrl(url: String) {
         context.dataStore.edit { it[SERVER_URL] = url }
